@@ -8,3 +8,6 @@ server/uploads/*
 __pycache__/
 *.pyc
 .DS_Store
+bapd_management_backup.sql
+server/server.js.backup
+server/server/uploads/
