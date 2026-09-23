@@ -17,6 +17,26 @@ export default function AdminDashboard() {
   const [matches, setMatches] = useState([]);
   const [gallery, setGallery] = useState([]);
 
+  // =========================================================
+  // ACHIEVEMENTS / PERFORMANCE
+  // =========================================================
+
+  const [achievements, setAchievements] = useState([]);
+
+  const [achievementForm, setAchievementForm] = useState({
+    player_id: "",
+    tournament_id: "",
+    custom_tournament_name: "",
+    match_id: "",
+    achievement_level: "District",
+    achievement_title: "",
+    achievement_type: "Medal",
+    result: "",
+    points_earned: 0,
+    achievement_date: "",
+    description: "",
+  });
+
   const [galleryForm, setGalleryForm] = useState({
     title: "",
     caption: "",
@@ -200,6 +220,23 @@ export default function AdminDashboard() {
   }
 
   // =========================================================
+  // LOAD ACHIEVEMENTS
+  // =========================================================
+
+  async function loadAchievements() {
+    try {
+      const response = await API.get("/achievements/all");
+
+      setAchievements(response.data || []);
+    } catch (error) {
+      console.error(
+        "Could not load achievements:",
+        error
+      );
+    }
+  }
+
+  // =========================================================
   // INITIAL LOAD
   // =========================================================
 
@@ -208,6 +245,7 @@ export default function AdminDashboard() {
     loadCoaches();
     loadMatches();
     loadGallery();
+    loadAchievements();
   }, []);
 
   // =========================================================
@@ -962,6 +1000,129 @@ export default function AdminDashboard() {
   }
 
   // =========================================================
+  // ADD ACHIEVEMENT
+  // =========================================================
+
+  async function addAchievement(e) {
+    e.preventDefault();
+
+    if (!achievementForm.player_id) {
+      setNotice("Please select a player");
+      return;
+    }
+
+    if (
+      achievementForm.tournament_id === "__other__" &&
+      !achievementForm.custom_tournament_name.trim()
+    ) {
+      setNotice("Please enter the other tournament name");
+      return;
+    }
+
+    if (!achievementForm.achievement_title.trim()) {
+      setNotice("Achievement title is required");
+      return;
+    }
+
+    if (!achievementForm.achievement_type.trim()) {
+      setNotice("Achievement type is required");
+      return;
+    }
+
+    try {
+      const isOtherTournament =
+        achievementForm.tournament_id === "__other__";
+
+      const response = await API.post(
+        "/achievements",
+        {
+          ...achievementForm,
+          tournament_id: isOtherTournament
+            ? null
+            : achievementForm.tournament_id || null,
+          custom_tournament_name: isOtherTournament
+            ? achievementForm.custom_tournament_name.trim()
+            : null,
+          match_id: isOtherTournament
+            ? null
+            : achievementForm.match_id || null,
+          points_earned:
+            Number(achievementForm.points_earned) || 0,
+          achievement_date:
+            achievementForm.achievement_date || null,
+        }
+      );
+
+      setNotice(
+        response.data.message ||
+          "Player achievement added successfully"
+      );
+
+      setAchievementForm({
+        player_id: "",
+        tournament_id: "",
+        custom_tournament_name: "",
+        match_id: "",
+        achievement_level: "District",
+        achievement_title: "",
+        achievement_type: "Medal",
+        result: "",
+        points_earned: 0,
+        achievement_date: "",
+        description: "",
+      });
+
+      loadAchievements();
+    } catch (error) {
+      console.error(
+        "Add achievement error:",
+        error
+      );
+
+      setNotice(
+        error.response?.data?.message ||
+          "Could not add achievement"
+      );
+    }
+  }
+
+  // =========================================================
+  // DELETE ACHIEVEMENT
+  // =========================================================
+
+  async function deleteAchievement(id) {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this achievement?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await API.delete(
+        `/achievements/${id}`
+      );
+
+      setNotice(
+        "Achievement deleted successfully"
+      );
+
+      loadAchievements();
+    } catch (error) {
+      console.error(
+        "Delete achievement error:",
+        error
+      );
+
+      setNotice(
+        error.response?.data?.message ||
+          "Could not delete achievement"
+      );
+    }
+  }
+
+  // =========================================================
   // NAVIGATION STYLE
   // =========================================================
 
@@ -1075,11 +1236,19 @@ export default function AdminDashboard() {
 
         <button
           style={buttonStyle}
+          onClick={() => setTab("achievements")}
+        >
+          Achievements
+        </button>
+
+        <button
+          style={buttonStyle}
           onClick={() => {
             loadDashboard();
             loadCoaches();
             loadMatches();
             loadGallery();
+            loadAchievements();
 
             setNotice(
               "Dashboard refreshed"
@@ -2802,6 +2971,570 @@ export default function AdminDashboard() {
 
         </div>
       )}
+
+      {/* =====================================================
+          ACHIEVEMENTS / PERFORMANCE
+      ===================================================== */}
+
+      {tab === "achievements" && (
+        <>
+          <div className="card">
+
+            <h2>Player Achievements & Performance</h2>
+
+            <p>
+              Record tournament and match achievements
+              for approved BAPD players.
+            </p>
+
+            <form
+              onSubmit={addAchievement}
+              className="form-grid"
+            >
+
+              <label>
+                Player
+
+                <select
+                  value={achievementForm.player_id}
+                  onChange={(e) =>
+                    setAchievementForm({
+                      ...achievementForm,
+                      player_id: e.target.value,
+                    })
+                  }
+                  required
+                >
+                  <option value="">
+                    Select Player
+                  </option>
+
+                  {players
+                    .filter(
+                      (player) =>
+                        player.status !== "rejected"
+                    )
+                    .map((player) => (
+                      <option
+                        key={player.id}
+                        value={player.id}
+                      >
+                        {player.full_name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+
+
+              <label>
+                Tournament
+
+                <select
+                  value={
+                    achievementForm.tournament_id
+                  }
+                  onChange={(e) => {
+                    const value = e.target.value;
+
+                    setAchievementForm({
+                      ...achievementForm,
+                      tournament_id: value,
+                      custom_tournament_name:
+                        value === "__other__"
+                          ? achievementForm.custom_tournament_name
+                          : "",
+                      match_id:
+                        value === "__other__"
+                          ? ""
+                          : achievementForm.match_id,
+                    });
+                  }}
+                >
+                  <option value="">
+                    Select Tournament
+                  </option>
+
+                  {tournaments.map(
+                    (tournament) => (
+                      <option
+                        key={tournament.id}
+                        value={tournament.id}
+                      >
+                        {tournament.name}
+                      </option>
+                    )
+                  )}
+
+                  <option value="__other__">
+                    Other
+                  </option>
+                </select>
+              </label>
+
+
+              {achievementForm.tournament_id === "__other__" && (
+                <label>
+                  Other Tournament Name
+
+                  <input
+                    type="text"
+                    value={
+                      achievementForm.custom_tournament_name
+                    }
+                    onChange={(e) =>
+                      setAchievementForm({
+                        ...achievementForm,
+                        custom_tournament_name:
+                          e.target.value,
+                      })
+                    }
+                    placeholder="Example: Tata Boxing Nationals 2025"
+                    required
+                  />
+
+                  <small
+                    style={{
+                      display: "block",
+                      marginTop: "5px",
+                      color: "#667085",
+                    }}
+                  >
+                    Enter the name of a tournament played by the boxer.
+                  </small>
+                </label>
+              )}
+
+
+              <label>
+                Match
+
+                <select
+                  value={achievementForm.match_id}
+                  onChange={(e) =>
+                    setAchievementForm({
+                      ...achievementForm,
+                      match_id:
+                        e.target.value,
+                    })
+                  }
+                  disabled={
+                    achievementForm.tournament_id ===
+                    "__other__"
+                  }
+                >
+                  <option value="">
+                    {achievementForm.tournament_id ===
+                    "__other__"
+                      ? "Match not available for Other Tournament"
+                      : "Select Match (Optional)"}
+                  </option>
+
+                  {matches.map((match) => (
+                    <option
+                      key={match.id}
+                      value={match.id}
+                    >
+                      {match.match_no ||
+                        `M-${match.id}`}{" "}
+                      -{" "}
+                      {match.player_a_name ||
+                        "Player A"}{" "}
+                      vs{" "}
+                      {match.player_b_name ||
+                        "Player B"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+
+              <label>
+                Achievement Level
+
+                <select
+                  value={
+                    achievementForm.achievement_level
+                  }
+                  onChange={(e) =>
+                    setAchievementForm({
+                      ...achievementForm,
+                      achievement_level:
+                        e.target.value,
+                    })
+                  }
+                  required
+                >
+                  <option value="Club">
+                    Club / Local
+                  </option>
+
+                  <option value="Taluka">
+                    Taluka / Regional
+                  </option>
+
+                  <option value="District">
+                    District
+                  </option>
+
+                  <option value="State">
+                    State
+                  </option>
+
+                  <option value="Zonal">
+                    Zonal
+                  </option>
+
+                  <option value="National">
+                    National
+                  </option>
+
+                  <option value="International">
+                    International
+                  </option>
+
+                  <option value="Asian Games">
+                    Asian Games
+                  </option>
+
+                  <option value="Commonwealth Games">
+                    Commonwealth Games
+                  </option>
+
+                  <option value="World Championship">
+                    World Championship
+                  </option>
+
+                  <option value="Olympic Games">
+                    Olympic Games
+                  </option>
+
+                  <option value="Other">
+                    Other
+                  </option>
+                </select>
+              </label>
+
+
+              <label>
+                Achievement Title
+
+                <input
+                  type="text"
+                  value={
+                    achievementForm.achievement_title
+                  }
+                  onChange={(e) =>
+                    setAchievementForm({
+                      ...achievementForm,
+                      achievement_title:
+                        e.target.value,
+                    })
+                  }
+                  placeholder="Example: Maharashtra State Boxing Championship"
+                  required
+                />
+              </label>
+
+
+              <label>
+                Achievement Type
+
+                <select
+                  value={
+                    achievementForm.achievement_type
+                  }
+                  onChange={(e) =>
+                    setAchievementForm({
+                      ...achievementForm,
+                      achievement_type:
+                        e.target.value,
+                    })
+                  }
+                  required
+                >
+                  <option value="Medal">
+                    Medal
+                  </option>
+
+                  <option value="Award">
+                    Award
+                  </option>
+
+                  <option value="Championship">
+                    Championship
+                  </option>
+
+                  <option value="Participation">
+                    Participation
+                  </option>
+
+                  <option value="Performance">
+                    Performance
+                  </option>
+                </select>
+              </label>
+
+
+              <label>
+                Result / Medal
+
+                <select
+                  value={achievementForm.result}
+                  onChange={(e) =>
+                    setAchievementForm({
+                      ...achievementForm,
+                      result:
+                        e.target.value,
+                    })
+                  }
+                >
+                  <option value="">
+                    Select Result (Optional)
+                  </option>
+
+                  <option value="Gold">
+                    Gold
+                  </option>
+
+                  <option value="Silver">
+                    Silver
+                  </option>
+
+                  <option value="Bronze">
+                    Bronze
+                  </option>
+
+                  <option value="Winner">
+                    Winner
+                  </option>
+
+                  <option value="Runner-up">
+                    Runner-up
+                  </option>
+
+                  <option value="Participation">
+                    Participation
+                  </option>
+
+                  <option value="Other">
+                    Other
+                  </option>
+                </select>
+              </label>
+
+
+              <label>
+                Points Earned
+
+                <input
+                  type="number"
+                  min="0"
+                  value={
+                    achievementForm.points_earned
+                  }
+                  onChange={(e) =>
+                    setAchievementForm({
+                      ...achievementForm,
+                      points_earned:
+                        e.target.value,
+                    })
+                  }
+                />
+              </label>
+
+
+              <label>
+                Achievement Date
+
+                <input
+                  type="date"
+                  value={
+                    achievementForm.achievement_date
+                  }
+                  onChange={(e) =>
+                    setAchievementForm({
+                      ...achievementForm,
+                      achievement_date:
+                        e.target.value,
+                    })
+                  }
+                />
+              </label>
+
+
+              <label>
+                Description
+
+                <textarea
+                  rows="5"
+                  value={
+                    achievementForm.description
+                  }
+                  onChange={(e) =>
+                    setAchievementForm({
+                      ...achievementForm,
+                      description:
+                        e.target.value,
+                    })
+                  }
+                  placeholder="Add additional achievement details"
+                />
+              </label>
+
+
+              <button
+                className="btn red full"
+                type="submit"
+              >
+                Add Achievement
+              </button>
+
+            </form>
+
+          </div>
+
+
+          <div className="card">
+
+            <h2>
+              Recorded Achievements
+            </h2>
+
+            {achievements.length === 0 ? (
+              <p>
+                No achievements recorded yet.
+              </p>
+            ) : (
+              <div
+                style={{
+                  overflowX: "auto",
+                }}
+              >
+
+                <table>
+
+                  <thead>
+                    <tr>
+                      <th>Player</th>
+                      <th>Achievement</th>
+                      <th>Level</th>
+                      <th>Type</th>
+                      <th>Result</th>
+                      <th>Points</th>
+                      <th>Tournament</th>
+                      <th>Date</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+
+                    {achievements.map(
+                      (achievement) => (
+                        <tr
+                          key={
+                            achievement.id
+                          }
+                        >
+
+                          <td>
+                            {
+                              achievement.player_name
+                            }
+                          </td>
+
+                          <td>
+                            {
+                              achievement.achievement_title
+                            }
+
+                            {achievement.description && (
+                              <small
+                                style={{
+                                  display:
+                                    "block",
+                                  color:
+                                    "#667085",
+                                  marginTop:
+                                    "4px",
+                                }}
+                              >
+                                {
+                                  achievement.description
+                                }
+                              </small>
+                            )}
+                          </td>
+
+                          <td>
+                            {
+                              achievement.achievement_level ||
+                              "-"
+                            }
+                          </td>
+
+                          <td>
+                            {
+                              achievement.achievement_type
+                            }
+                          </td>
+
+                          <td>
+                            {
+                              achievement.result ||
+                              "-"
+                            }
+                          </td>
+
+                          <td>
+                            {
+                              achievement.points_earned ??
+                              0
+                            }
+                          </td>
+
+                          <td>
+                            {
+                              achievement.tournament_name ||
+                              achievement.custom_tournament_name ||
+                              "-"
+                            }
+                          </td>
+
+                          <td>
+                            {
+                              achievement.achievement_date ||
+                              "-"
+                            }
+                          </td>
+
+                          <td>
+                            <button
+                              onClick={() =>
+                                deleteAchievement(
+                                  achievement.id
+                                )
+                              }
+                            >
+                              Delete
+                            </button>
+                          </td>
+
+                        </tr>
+                      )
+                    )}
+
+                  </tbody>
+
+                </table>
+
+              </div>
+            )}
+
+          </div>
+        </>
+      )}
+
 
       {/* =====================================================
           GALLERY

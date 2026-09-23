@@ -1,19 +1,16 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
-
 import { pool } from "../config/db.js";
 import {
   requireAuth,
   requirePlayer,
 } from "../middleware/auth.js";
 
-import { sendEmail } from "../config/email.js";
-
 const router = express.Router();
 
 // =========================================================
-// FILE UPLOAD SETUP
+// MULTER STORAGE
 // =========================================================
 
 const storage = multer.diskStorage({
@@ -27,7 +24,7 @@ const storage = multer.diskStorage({
 
     cb(
       null,
-      Date.now() + "-" + safeName
+      `${Date.now()}-${safeName}`
     );
   },
 });
@@ -40,16 +37,17 @@ const upload = multer({
   },
 
   fileFilter: (req, file, cb) => {
-    const allowed = /^image\/(jpeg|png|webp|jpg)$/.test(
-      file.mimetype
+    cb(
+      null,
+      /^image\/(jpeg|png|webp|jpg)$/.test(
+        file.mimetype
+      )
     );
-
-    cb(null, allowed);
   },
 });
 
 // =========================================================
-// PLAYER PROFILE / REGISTRATION
+// CREATE PLAYER PROFILE
 // =========================================================
 
 router.post(
@@ -82,10 +80,6 @@ router.post(
         coach_id,
       } = req.body;
 
-      // -----------------------------------------------------
-      // VALIDATION
-      // -----------------------------------------------------
-
       if (
         !full_name ||
         !dob ||
@@ -99,22 +93,15 @@ router.post(
         });
       }
 
-      // -----------------------------------------------------
-      // FILES
-      // -----------------------------------------------------
-
       const photo =
         req.files?.photo?.[0]?.filename || null;
 
       const proof =
-        req.files?.age_proof?.[0]?.filename || null;
-
-      // -----------------------------------------------------
-      // CHECK EXISTING PROFILE
-      // -----------------------------------------------------
+        req.files?.age_proof?.[0]?.filename ||
+        null;
 
       const [existing] = await pool.query(
-        "SELECT id FROM players WHERE user_id=?",
+        "SELECT id FROM players WHERE user_id = ?",
         [req.user.id]
       );
 
@@ -124,22 +111,6 @@ router.post(
             "Player profile already exists",
         });
       }
-
-      // -----------------------------------------------------
-      // GET PLAYER EMAIL
-      // -----------------------------------------------------
-
-      const [users] = await pool.query(
-        "SELECT email FROM users WHERE id=?",
-        [req.user.id]
-      );
-
-      const playerEmail =
-        users.length ? users[0].email : null;
-
-      // -----------------------------------------------------
-      // INSERT PLAYER PROFILE
-      // -----------------------------------------------------
 
       const [result] = await pool.query(
         `
@@ -176,183 +147,22 @@ router.post(
         ]
       );
 
-      // -----------------------------------------------------
-      // EMAIL NOTIFICATIONS
-      // -----------------------------------------------------
-
-      // Send emails separately so that an email failure
-      // does NOT undo the successful player registration.
-
-      try {
-        // ADMIN NOTIFICATION
-        await sendEmail({
-          to: process.env.EMAIL_TO,
-
-          subject:
-            "New BAPD Player Registration",
-
-          text: `
-A new player profile has been submitted on the BAPD website.
-
-Player Name: ${full_name}
-Date of Birth: ${dob}
-Gender: ${gender}
-Weight Category: ${weight_category}
-Age Group: ${age_group}
-Club: ${club || "Not provided"}
-Phone: ${phone || "Not provided"}
-Email: ${playerEmail || "Not available"}
-
-The profile is now pending admin approval.
-          `,
-
-          html: `
-            <h2>New BAPD Player Registration</h2>
-
-            <p>
-              A new player profile has been submitted
-              on the BAPD website.
-            </p>
-
-            <table cellpadding="8" cellspacing="0" border="1">
-              <tr>
-                <td><strong>Player Name</strong></td>
-                <td>${full_name}</td>
-              </tr>
-
-              <tr>
-                <td><strong>Date of Birth</strong></td>
-                <td>${dob}</td>
-              </tr>
-
-              <tr>
-                <td><strong>Gender</strong></td>
-                <td>${gender}</td>
-              </tr>
-
-              <tr>
-                <td><strong>Weight Category</strong></td>
-                <td>${weight_category}</td>
-              </tr>
-
-              <tr>
-                <td><strong>Age Group</strong></td>
-                <td>${age_group}</td>
-              </tr>
-
-              <tr>
-                <td><strong>Club</strong></td>
-                <td>${club || "Not provided"}</td>
-              </tr>
-
-              <tr>
-                <td><strong>Phone</strong></td>
-                <td>${phone || "Not provided"}</td>
-              </tr>
-
-              <tr>
-                <td><strong>Email</strong></td>
-                <td>${playerEmail || "Not available"}</td>
-              </tr>
-            </table>
-
-            <p>
-              <strong>Status:</strong>
-              Pending admin approval.
-            </p>
-          `,
-        });
-
-        console.log(
-          "Admin registration email sent successfully."
-        );
-
-        // PLAYER CONFIRMATION
-        if (playerEmail) {
-          await sendEmail({
-            to: playerEmail,
-
-            subject:
-              "BAPD Player Registration Submitted",
-
-            text: `
-Hello ${full_name},
-
-Your player profile has been successfully submitted to the Boxing Association of Palghar District (BAPD).
-
-Your registration is currently pending admin approval.
-
-You will be able to access approved player features after your profile is approved.
-
-Thank you,
-BAPD
-            `,
-
-            html: `
-              <h2>BAPD Player Registration Submitted</h2>
-
-              <p>
-                Hello <strong>${full_name}</strong>,
-              </p>
-
-              <p>
-                Your player profile has been successfully
-                submitted to the Boxing Association of
-                Palghar District (BAPD).
-              </p>
-
-              <p>
-                <strong>Status:</strong>
-                Pending admin approval
-              </p>
-
-              <p>
-                You will be able to access approved player
-                features after your profile is approved.
-              </p>
-
-              <p>
-                Thank you,<br />
-                <strong>BAPD</strong>
-              </p>
-            `,
-          });
-
-          console.log(
-            "Player confirmation email sent successfully."
-          );
-        }
-
-      } catch (emailError) {
-        // IMPORTANT:
-        // Registration remains successful even if
-        // email sending fails.
-
-        console.error(
-          "Registration email error:",
-          emailError.message
-        );
-      }
-
-      // -----------------------------------------------------
-      // SUCCESS RESPONSE
-      // -----------------------------------------------------
-
-      return res.status(201).json({
+      res.status(201).json({
         message:
           "Player profile submitted for admin approval",
+
         playerId: result.insertId,
       });
-
     } catch (error) {
       console.error(
-        "Player registration error:",
+        "Player profile error:",
         error
       );
 
-      return res.status(500).json({
+      res.status(500).json({
         message:
           "Could not save player profile",
+
         error: error.message,
       });
     }
@@ -360,7 +170,7 @@ BAPD
 );
 
 // =========================================================
-// GET CURRENT PLAYER PROFILE
+// GET LOGGED-IN PLAYER PROFILE
 // =========================================================
 
 router.get(
@@ -405,7 +215,6 @@ router.get(
       }
 
       res.json(rows[0]);
-
     } catch (error) {
       console.error(
         "Get player profile error:",
@@ -415,13 +224,66 @@ router.get(
       res.status(500).json({
         message:
           "Could not load player profile",
+
+        error: error.message,
       });
     }
   }
 );
 
 // =========================================================
-// TOURNAMENT REGISTRATION
+// GET LOGGED-IN PLAYER'S TOURNAMENT REGISTRATIONS
+// =========================================================
+
+router.get(
+  "/tournaments/registrations",
+  requireAuth,
+  requirePlayer,
+
+  async (req, res) => {
+    try {
+      const [rows] = await pool.query(
+        `
+        SELECT
+          tr.id AS registration_id,
+          tr.tournament_id,
+          t.name AS tournament_name,
+          t.tournament_date
+
+        FROM tournament_registrations tr
+
+        JOIN players p
+          ON p.id = tr.player_id
+
+        JOIN tournaments t
+          ON t.id = tr.tournament_id
+
+        WHERE p.user_id = ?
+
+        ORDER BY tr.id DESC
+        `,
+        [req.user.id]
+      );
+
+      res.json(rows);
+    } catch (error) {
+      console.error(
+        "Tournament registrations error:",
+        error
+      );
+
+      res.status(500).json({
+        message:
+          "Could not load tournament registrations",
+
+        error: error.message,
+      });
+    }
+  }
+);
+
+// =========================================================
+// REGISTER PLAYER FOR TOURNAMENT
 // =========================================================
 
 router.post(
@@ -440,9 +302,16 @@ router.post(
         [req.user.id]
       );
 
+      if (!players.length) {
+        return res.status(404).json({
+          message:
+            "Player profile not found",
+        });
+      }
+
       if (
-        !players.length ||
-        players[0].status !== "approved"
+        players[0].status !==
+        "approved"
       ) {
         return res.status(403).json({
           message:
@@ -450,6 +319,30 @@ router.post(
         });
       }
 
+      // Check whether already registered
+      const [existing] =
+        await pool.query(
+          `
+          SELECT id
+          FROM tournament_registrations
+
+          WHERE tournament_id = ?
+            AND player_id = ?
+          `,
+          [
+            req.params.tournamentId,
+            players[0].id,
+          ]
+        );
+
+      if (existing.length > 0) {
+        return res.status(409).json({
+          message:
+            "You are already registered for this tournament",
+        });
+      }
+
+      // Create registration
       await pool.query(
         `
         INSERT INTO tournament_registrations
@@ -469,19 +362,24 @@ router.post(
         message:
           "Tournament registration successful",
       });
-
     } catch (error) {
       console.error(
         "Tournament registration error:",
         error
       );
 
-      res.status(409).json({
+      res.status(500).json({
         message:
-          "You may already be registered for this tournament",
+          "Tournament registration failed",
+
+        error: error.message,
       });
     }
   }
 );
+
+// =========================================================
+// EXPORT ROUTER
+// =========================================================
 
 export default router;

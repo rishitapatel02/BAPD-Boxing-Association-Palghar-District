@@ -1,121 +1,106 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import bapdLogo from "../assets/bapd-logo.jpeg";
 
 function Layout({ children }) {
   const { user, logout } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   function handleLogout() {
     logout();
+    setMobileMenuOpen(false);
+  }
+
+  function closeMobileMenu() {
+    setMobileMenuOpen(false);
   }
 
   return (
     <div className="app-container">
 
-      {/* Navigation Bar */}
-      <nav
-        style={{
-          background: "#000",
-          padding: "15px 30px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "15px",
-        }}
-      >
+      {/* =====================================================
+          NAVBAR
+      ===================================================== */}
 
-        {/* Logo / Brand */}
+      <nav className="nav">
+
+        {/* LOGO */}
         <Link
           to="/"
-          style={{
-            color: "#fff",
-            textDecoration: "none",
-            fontSize: "22px",
-            fontWeight: "bold",
-          }}
+          className="brand"
+          onClick={closeMobileMenu}
         >
-          🥊 BAPD
+          <img
+            src={bapdLogo}
+            alt="BAPD Logo"
+          />
+
+          <span>BAPD</span>
         </Link>
 
-        {/* Navigation Links */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "18px",
-            flexWrap: "wrap",
-          }}
-        >
 
-          <Link to="/" style={navStyle}>
+        {/* ===================================================
+            DESKTOP / LAPTOP NAVBAR
+        =================================================== */}
+
+        <div className="desktop-nav">
+
+          <Link to="/" className="nav-link">
             Home
           </Link>
 
-          <Link to="/about" style={navStyle}>
+          <Link to="/about" className="nav-link">
             About
           </Link>
 
-          <Link to="/players" style={navStyle}>
+          <Link to="/players" className="nav-link">
             Players
           </Link>
 
-          <Link to="/tournaments" style={navStyle}>
+          <Link to="/tournaments" className="nav-link">
             Tournaments
           </Link>
 
-          {/* NEW: MATCHES */}
-          <Link to="/matches" style={navStyle}>
+          <Link to="/matches" className="nav-link">
             Matches
           </Link>
 
-          <Link to="/rankings" style={navStyle}>
+          <Link to="/rankings" className="nav-link">
             Rankings
           </Link>
 
-          <Link to="/news" style={navStyle}>
+          <Link to="/news" className="nav-link">
             News
           </Link>
 
-          <Link to="/gallery" style={navStyle}>
+          <Link to="/gallery" className="nav-link">
             Gallery
           </Link>
 
-          <Link to="/contact" style={navStyle}>
+          <Link to="/contact" className="nav-link">
             Contact
           </Link>
 
-
-          {/* Login / Dashboard */}
           {!user ? (
             <>
               <Link
                 to="/login"
-                style={{
-                  ...navStyle,
-                  background: "#174ea6",
-                  padding: "8px 14px",
-                  borderRadius: "6px",
-                }}
+                className="nav-action nav-login"
               >
                 Player Login
               </Link>
 
               <Link
                 to="/register"
-                style={{
-                  ...navStyle,
-                  background: "#d62828",
-                  padding: "8px 14px",
-                  borderRadius: "6px",
-                }}
+                className="nav-action nav-register"
               >
                 Register
               </Link>
 
               <Link
                 to="/admin/login"
-                style={navStyle}
+                className="nav-link"
               >
                 Admin Login
               </Link>
@@ -125,12 +110,7 @@ function Layout({ children }) {
               {user.role === "player" && (
                 <Link
                   to="/player"
-                  style={{
-                    ...navStyle,
-                    background: "#174ea6",
-                    padding: "8px 14px",
-                    borderRadius: "6px",
-                  }}
+                  className="nav-action nav-login"
                 >
                   My Dashboard
                 </Link>
@@ -139,28 +119,16 @@ function Layout({ children }) {
               {user.role === "admin" && (
                 <Link
                   to="/admin"
-                  style={{
-                    ...navStyle,
-                    background: "#174ea6",
-                    padding: "8px 14px",
-                    borderRadius: "6px",
-                  }}
+                  className="nav-action nav-login"
                 >
                   Admin Dashboard
                 </Link>
               )}
 
               <button
+                type="button"
                 onClick={handleLogout}
-                style={{
-                  background: "#d62828",
-                  color: "#fff",
-                  border: "none",
-                  padding: "8px 14px",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontWeight: "600",
-                }}
+                className="nav-action nav-register"
               >
                 Logout
               </button>
@@ -168,19 +136,179 @@ function Layout({ children }) {
           )}
 
         </div>
+
+
+        {/* ===================================================
+            MOBILE NAVBAR
+        =================================================== */}
+
+        <div className="mobile-nav-area">
+
+          {/* ONLY 3 MAIN LINKS */}
+          <div className="mobile-main-links">
+
+            <Link
+              to="/"
+              className="mobile-main-link"
+              onClick={closeMobileMenu}
+            >
+              Home
+            </Link>
+
+            <Link
+              to="/about"
+              className="mobile-main-link"
+              onClick={closeMobileMenu}
+            >
+              About
+            </Link>
+
+            <Link
+              to="/gallery"
+              className="mobile-main-link"
+              onClick={closeMobileMenu}
+            >
+              Gallery
+            </Link>
+
+            {/* ARROW */}
+            <button
+              type="button"
+              className="mobile-more-button"
+              onClick={() =>
+                setMobileMenuOpen((previous) => !previous)
+              }
+              aria-expanded={mobileMenuOpen}
+              aria-label="More navigation"
+            >
+              {mobileMenuOpen ? "▼" : "▶"}
+            </button>
+
+          </div>
+
+
+          {/* =================================================
+              MOBILE DROPDOWN
+          ================================================= */}
+
+          {mobileMenuOpen && (
+            <div className="mobile-dropdown">
+
+              <Link
+                to="/players"
+                onClick={closeMobileMenu}
+              >
+                Players
+              </Link>
+
+              <Link
+                to="/tournaments"
+                onClick={closeMobileMenu}
+              >
+                Tournaments
+              </Link>
+
+              <Link
+                to="/matches"
+                onClick={closeMobileMenu}
+              >
+                Matches
+              </Link>
+
+              <Link
+                to="/rankings"
+                onClick={closeMobileMenu}
+              >
+                Rankings
+              </Link>
+
+              <Link
+                to="/news"
+                onClick={closeMobileMenu}
+              >
+                News
+              </Link>
+
+              <Link
+                to="/contact"
+                onClick={closeMobileMenu}
+              >
+                Contact
+              </Link>
+
+              {!user ? (
+                <>
+                  <Link
+                    to="/login"
+                    className="mobile-dropdown-blue"
+                    onClick={closeMobileMenu}
+                  >
+                    Player Login
+                  </Link>
+
+                  <Link
+                    to="/register"
+                    className="mobile-dropdown-red"
+                    onClick={closeMobileMenu}
+                  >
+                    Register
+                  </Link>
+
+                  <Link
+                    to="/admin/login"
+                    onClick={closeMobileMenu}
+                  >
+                    Admin Login
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {user.role === "player" && (
+                    <Link
+                      to="/player"
+                      className="mobile-dropdown-blue"
+                      onClick={closeMobileMenu}
+                    >
+                      My Dashboard
+                    </Link>
+                  )}
+
+                  {user.role === "admin" && (
+                    <Link
+                      to="/admin"
+                      className="mobile-dropdown-blue"
+                      onClick={closeMobileMenu}
+                    >
+                      Admin Dashboard
+                    </Link>
+                  )}
+
+                  <button
+                    type="button"
+                    className="mobile-dropdown-red"
+                    onClick={handleLogout}
+                  >
+                    Logout
+                  </button>
+                </>
+              )}
+
+            </div>
+          )}
+
+        </div>
+
       </nav>
 
-      {/* Page Content */}
+
+      {/* =====================================================
+          PAGE CONTENT
+      ===================================================== */}
+
       {children}
 
     </div>
   );
 }
-
-const navStyle = {
-  color: "#fff",
-  textDecoration: "none",
-  fontWeight: "600",
-};
 
 export default Layout;

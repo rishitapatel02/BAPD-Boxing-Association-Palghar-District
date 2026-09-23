@@ -11,29 +11,18 @@ import authRoutes from "./routes/auth.js";
 import publicRoutes from "./routes/public.js";
 import playerRoutes from "./routes/players.js";
 import adminRoutes from "./routes/admin.js";
+import achievementRoutes from "./routes/achievements.js";
 import chatbotRoutes from "./routes/chatbot.js";
-import coachRoutes from "./routes/coaches.js";
-import matchRoutes from "./routes/matches.js";
-import emailRoutes from "./routes/email.js";
 
 dotenv.config();
 
 const app = express();
 
-// =========================================================
-// PATH SETUP
-// =========================================================
-
-const __filename = fileURLToPath(
-  import.meta.url
-);
-
-const __dirname = path.dirname(
-  __filename
-);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // =========================================================
-// MIDDLEWARE
+// SECURITY
 // =========================================================
 
 app.use(
@@ -42,13 +31,22 @@ app.use(
   })
 );
 
+// =========================================================
+// CORS
+// =========================================================
+
 app.use(
   cors({
     origin:
       process.env.CLIENT_URL ||
       "http://localhost:5173",
+    credentials: true,
   })
 );
+
+// =========================================================
+// BODY PARSING
+// =========================================================
 
 app.use(
   express.json({
@@ -61,10 +59,7 @@ app.use(
     extended: true,
   })
 );
-app.use(
-  "/api/email",
-  emailRoutes
-);
+
 // =========================================================
 // UPLOADS
 // =========================================================
@@ -88,7 +83,7 @@ app.get("/", (req, res) => {
 });
 
 // =========================================================
-// API ROUTES
+// AUTH ROUTES
 // =========================================================
 
 app.use(
@@ -96,34 +91,49 @@ app.use(
   authRoutes
 );
 
+// =========================================================
+// PUBLIC ROUTES
+// =========================================================
+
 app.use(
   "/api/public",
   publicRoutes
 );
+
+// =========================================================
+// PLAYER ROUTES
+// =========================================================
 
 app.use(
   "/api/players",
   playerRoutes
 );
 
+// =========================================================
+// ADMIN ROUTES
+// =========================================================
+
 app.use(
   "/api/admin",
   adminRoutes
 );
 
+// =========================================================
+// ACHIEVEMENT ROUTES
+// =========================================================
+
 app.use(
-  "/api/coaches",
-  coachRoutes
+  "/api/achievements",
+  achievementRoutes
 );
+
+// =========================================================
+// AI CHATBOT ROUTES
+// =========================================================
 
 app.use(
   "/api/chatbot",
   chatbotRoutes
-);
-
-app.use(
-  "/api/matches",
-  matchRoutes
 );
 
 // =========================================================
@@ -132,6 +142,7 @@ app.use(
 
 app.use((req, res) => {
   res.status(404).json({
+    success: false,
     message: "API route not found",
     path: req.originalUrl,
   });
@@ -141,11 +152,19 @@ app.use((req, res) => {
 // ERROR HANDLER
 // =========================================================
 
-app.use((error, req, res, next) => {
-  console.error("Server error:", error);
+app.use((err, req, res, next) => {
+  console.error(
+    "Server Error:",
+    err
+  );
 
-  res.status(500).json({
-    message: "Internal server error",
+  res.status(
+    err.status || 500
+  ).json({
+    success: false,
+    message:
+      err.message ||
+      "Internal server error",
   });
 });
 
@@ -153,25 +172,27 @@ app.use((error, req, res, next) => {
 // START SERVER
 // =========================================================
 
-const PORT = Number(
-  process.env.PORT || 5000
-);
+const PORT = Number(process.env.PORT || 5000);
 
-app.listen(PORT, async () => {
-  try {
-    await testDb();
-
+if (process.env.VERCEL !== "1") {
+  app.listen(PORT, async () => {
     console.log(
       `BAPD server running on http://localhost:${PORT}`
     );
 
-    console.log(
-      "MySQL connected successfully"
-    );
-  } catch (error) {
-    console.error(
-      "MySQL connection failed:",
-      error.message
-    );
-  }
-});
+    try {
+      await testDb();
+
+      console.log(
+        "✅ MySQL connected successfully"
+      );
+    } catch (error) {
+      console.error(
+        "❌ MySQL connection failed:",
+        error.message
+      );
+    }
+  });
+}
+
+export default app;
