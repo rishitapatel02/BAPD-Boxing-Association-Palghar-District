@@ -1,4 +1,3 @@
-
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 
@@ -8,6 +7,14 @@ dotenv.config();
 const caCertificate = process.env.DB_SSL_CA
   ?.replace(/\\n/g, "\n")
   .trim();
+
+// Temporary diagnostic: check whether the CA certificate is loaded
+console.log(
+  "Aiven CA loaded:",
+  Boolean(caCertificate),
+  "Length:",
+  caCertificate?.length
+);
 
 // Create MySQL connection pool
 export const pool = mysql.createPool({
