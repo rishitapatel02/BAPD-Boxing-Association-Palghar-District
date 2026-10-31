@@ -1,5 +1,7 @@
+
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+
 dotenv.config();
 
 export const pool = mysql.createPool({
@@ -8,6 +10,13 @@ export const pool = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+
+  // SSL configuration for Aiven MySQL
+  ssl: {
+    ca: process.env.DB_SSL_CA,
+    rejectUnauthorized: true
+  },
+
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -15,6 +24,10 @@ export const pool = mysql.createPool({
 
 export async function testDb() {
   const connection = await pool.getConnection();
-  await connection.ping();
-  connection.release();
+
+  try {
+    await connection.ping();
+  } finally {
+    connection.release();
+  }
 }
