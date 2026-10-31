@@ -137,6 +137,28 @@ app.use(
 );
 
 // =========================================================
+// DATABASE CONNECTION TEST
+// =========================================================
+
+app.get("/api/health/db", async (req, res) => {
+  try {
+    await testDb();
+
+    res.json({
+      success: true,
+      message: "Aiven MySQL connected successfully"
+    });
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Database connection failed"
+    });
+  }
+});
+
+// =========================================================
 // 404 HANDLER
 // =========================================================
 
