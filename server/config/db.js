@@ -46,14 +46,25 @@ export const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-// Test database connection
+// Test database connection and log detailed errors
 export async function testDb() {
-  const connection = await pool.getConnection();
+  let connection;
 
   try {
+    connection = await pool.getConnection();
     await connection.ping();
     return true;
+  } catch (error) {
+    console.error("DB ERROR DETAILS:", {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      syscall: error.syscall,
+      cause: error.cause?.message,
+    });
+
+    throw error;
   } finally {
-    connection.release();
+    connection?.release();
   }
 }
