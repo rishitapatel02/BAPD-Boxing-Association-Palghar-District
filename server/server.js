@@ -58,7 +58,14 @@ app.get("/api/health/db", async (req, res) => {
       message: "Aiven MySQL connected successfully",
     });
   } catch (error) {
-    console.error("Database connection failed:", error.message);
+    console.error("Database connection failed:", {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      syscall: error.syscall,
+      cause: error.cause?.message,
+      stack: error.stack,
+    });
 
     res.status(500).json({
       success: false,
@@ -75,7 +82,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/achievements", achievementRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 
-// 404 Handler (keep this at the bottom)
+// 404 Handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
