@@ -4,10 +4,12 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Read the CA certificate from Vercel environment variables
 const caCertificate = process.env.DB_SSL_CA
   ?.replace(/\\n/g, "\n")
   .trim();
 
+// Create MySQL connection pool
 export const pool = mysql.createPool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT || 3306),
@@ -25,11 +27,13 @@ export const pool = mysql.createPool({
   queueLimit: 0,
 });
 
+// Test database connection
 export async function testDb() {
   const connection = await pool.getConnection();
 
   try {
     await connection.ping();
+    return true;
   } finally {
     connection.release();
   }
