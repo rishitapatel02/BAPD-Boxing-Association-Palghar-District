@@ -1,8 +1,12 @@
 
-import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
+import mysql from "mysql2/promise";
+import dotenv from "dotenv";
 
 dotenv.config();
+
+const caCertificate = process.env.DB_SSL_CA
+  ?.replace(/\\n/g, "\n")
+  .trim();
 
 export const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -11,15 +15,14 @@ export const pool = mysql.createPool({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
 
-  // SSL configuration for Aiven MySQL
   ssl: {
-    ca: process.env.DB_SSL_CA,
-    rejectUnauthorized: true
+    ca: caCertificate,
+    rejectUnauthorized: true,
   },
 
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
 });
 
 export async function testDb() {
